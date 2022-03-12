@@ -13,22 +13,23 @@ def fi(mu_i, i, mu_minus_i, sigma, gamma, X, Y, lamb):
 
 
 def gi(sigma_i, i, mu, X, lamb):
+
     g = 0.5 * (X.T @ X)[i, i] * sigma_i**2
     g += lamb * mu[i] * sigma_i * np.sqrt(2/np.pi) * np.exp(-mu[i]**2/(2*sigma_i**2))
     g += lamb * mu[i] * (1 - norm.cdf(mu[i]/sigma_i))
     g += - np.log(sigma_i)
     return g
 
-def expgamma(i, mu, sigma, gamma, X, Y, a0, b0, lamb):
+def Gamma_function(i, mu, sigma, gamma, X, Y, a0, b0, lamb):
     Gamma = np.log(a0/b0)
     Gamma += np.log(np.sqrt(np.pi/2)*sigma[i]*lamb)
-    Gamma += mu[i] * (X.T @ X)[i, np.arange(X.shape[1])!=i] @ (gamma[np.arange(len(gamma))!=i] * mu[np.arange(len(mu))!=i])
-    Gamma += 0.5*(X.T @ X)[i, i] * (mu[i]**2 + gamma[i]**2)
-    Gamma -= (Y.T @ X)[i] * mu[i]
+    Gamma -= mu[i] * (X.T @ X)[i, np.arange(X.shape[1])!=i] @ (gamma[np.arange(len(gamma))!=i] * mu[np.arange(len(mu))!=i])
+    Gamma -= 0.5*(X.T @ X)[i, i] * (mu[i]**2 + sigma[i]**2)
+    Gamma += (Y.T @ X)[i] * mu[i]
     Gamma -= lamb * sigma[i] * np.sqrt(2/np.pi) * np.exp(-mu[i]**2/(2*sigma[i]**2))
-    Gamma -= lamb * mu[i] * (1 - 2*np.exp(norm.cdf(-mu[i]/sigma[i])))
+    Gamma -= lamb * mu[i] * (1 - 2*norm.cdf(-mu[i]/sigma[i]))
 
-    return np.exp(Gamma + 0.5)
+    return Gamma + 0.5
 
 
 def H(p):
@@ -40,7 +41,17 @@ def mu_0(X, Y):
     return np.linalg.inv(X.T @ X + np.eye(p)) @ X.T @ Y
 
 
-def variational_bayes(X, Y, sigma, gamma, mu, a0, b0, lamb, eps=1e-5, max_it=1000):
+def inv_logit(p):
+    if p > 0:
+        return 1. / (1. + np.exp(-p))
+    elif p <= 0:
+        return np.exp(p) / (1 + np.exp(p))
+    else:
+        print("AWPER")
+        raise ValueError
+
+
+def variational_bayes(X, Y, sigma, gamma, mu, a0, b0, lamb, eps=1e-5, max_it=1):
     deltaH = 10
     p = len(mu)
     it = 0
@@ -55,13 +66,13 @@ def variational_bayes(X, Y, sigma, gamma, mu, a0, b0, lamb, eps=1e-5, max_it=100
             mu[i] = res.x
 
             ## update gamma_i
-            res = minimize(gi, gamma[i], args=(i, mu, X, lamb))
-            gamma[i] = res.x
-            print(gamma[i])
+            cons = ({'type': 'ineq', 'fun': lambda x:  x})
+            res = minimize(gi, sigma[i], args=(i, mu, X, lamb), constraints=cons)
+            sigma[i] = res.x
 
             ## update gamma
-            egamma = expgamma(i, mu, sigma, gamma, X, Y, a0, b0, lamb)
-            gamma[i] = egamma/(1 + egamma)
+            Gamma = Gamma_function(i, mu, sigma, gamma, X, Y, a0, b0, lamb)
+            gamma[i] = inv_logit(Gamma)
 
         it += 1
         deltaH = np.max(np.abs(H(gamma) - H(gamma_old)))
