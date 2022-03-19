@@ -1,4 +1,5 @@
 import numpy as np
+from scipy import dtype
 from scipy.optimize import minimize
 from scipy.stats import norm
 import tqdm 
@@ -55,15 +56,22 @@ def inv_logit(p):
         raise ValueError
 
 
-def variational_laplace(X, Y, sigma, gamma, mu, a0, b0, lamb, eps=1e-5, max_it=1):
+def variational_laplace(X, Y, sigma, gamma, mu, a0, b0, lamb, order='priority', eps=1e-5, max_it=1):
     deltaH = 10
     p = len(mu)
     it = 0
-    a = np.argsort(np.abs(mu))
+    ## choose order
+    if order=='priority':
+        a = np.argsort(np.abs(mu))
+    if order=='lexicographical':
+        a = np.linspace(0, p-1, p, dtype=int)
+    
     pbar = tqdm.tqdm(total=max_it)
     ent = H(gamma, np.random.random(p))
     while it < max_it and deltaH >= eps:
         pbar.update(1)
+        if order=='random':
+            a = np.random.choice(p, size=p, replace=False)
         for j in range(p):
             i = a[j]
             ## update mu_i
@@ -79,15 +87,14 @@ def variational_laplace(X, Y, sigma, gamma, mu, a0, b0, lamb, eps=1e-5, max_it=1
             ## update gamma
             Gamma = Gamma_function(i, mu, sigma, gamma, X, Y, a0, b0, lamb)
             gamma[i] = inv_logit(Gamma)
-
         it += 1
         ent_old = np.copy(ent)
         ent = H(gamma, ent)
         deltaH = np.max(np.abs(ent) - np.abs(ent_old))
-        print(deltaH)
 
     pbar.close( )
     return mu, sigma, gamma
+
 
 def variational_gaussian(X, Y, sigma, gamma, mu, a0, b0, lamb, eps=1e-5, max_it=1):
     deltaH = 10
@@ -115,7 +122,6 @@ def variational_gaussian(X, Y, sigma, gamma, mu, a0, b0, lamb, eps=1e-5, max_it=
         ent_old = np.copy(ent)
         ent = H(gamma, ent)
         deltaH = np.max(np.abs(ent) - np.abs(ent_old))
-        print(deltaH)
 
     pbar.close()
     return mu, sigma, gamma
