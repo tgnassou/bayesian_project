@@ -62,12 +62,12 @@ def variational_laplace(X, Y, sigma, gamma, mu, a0, b0, lamb, order='priority', 
     it = 0
     ## choose order
     if order=='priority':
-        a = np.argsort(np.abs(mu))
+        a = np.argsort(np.abs(mu))[::-1]
     if order=='lexicographical':
         a = np.linspace(0, p-1, p, dtype=int)
     
     pbar = tqdm.tqdm(total=max_it)
-    ent = H(gamma, np.random.random(p))
+    ent = H(np.random.random(p), np.random.random(p))
     while it < max_it and deltaH >= eps:
         pbar.update(1)
         if order=='random':
@@ -91,7 +91,6 @@ def variational_laplace(X, Y, sigma, gamma, mu, a0, b0, lamb, order='priority', 
         ent_old = np.copy(ent)
         ent = H(gamma, ent)
         deltaH = np.max(np.abs(ent) - np.abs(ent_old))
-
     pbar.close( )
     return mu, sigma, gamma
 
