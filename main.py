@@ -5,7 +5,7 @@ from scipy.stats import norm
 import tqdm 
 
 def fi(mu_i, i, mu_minus_i, sigma, gamma, X, Y, lamb):
-    """ minimize this function wrt mu """
+    """ minimize this function wrt mu  """
     f = mu_i * (X.T @ X)[i, np.arange(X.shape[1])!=i] @ (gamma[np.arange(len(gamma))!=i] * mu_minus_i)
     f += 0.5*(X.T @ X)[i, i] * mu_i**2
     f -= (Y.T @ X)[i] * mu_i
@@ -55,6 +55,7 @@ def inv_logit(p):
         return 1. / (1. + np.exp(-p))
     elif p <= 0:
         return np.exp(p) / (1 + np.exp(p))
+        
     else:
         print("Error")
         raise ValueError
